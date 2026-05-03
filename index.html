@@ -224,12 +224,20 @@
                     <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-clipboard-check text-green-600 mr-2"></i>Senarai & Carian Kursus Diluluskan</h3>
                     <button onclick="closeSearchModal()" class="text-gray-400 hover:text-red-500 transition text-3xl leading-none">&times;</button>
                 </div>
-                <div class="p-4 border-b border-gray-200 bg-white">
-                    <div class="relative">
+                <div class="p-4 border-b border-gray-200 bg-white flex flex-col sm:flex-row gap-4">
+                    <div class="relative flex-1">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <i class="fas fa-search text-gray-400"></i>
                         </div>
-                        <input type="text" id="courseSearchInput" class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition" placeholder="Taip di sini untuk mencari nama kursus, agensi, kategori, bulan..." onkeyup="filterCourses()">
+                        <input type="text" id="courseSearchInput" class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition" placeholder="Taip di sini untuk mencari nama kursus, agensi, kategori, bulan..." onkeyup="filterCourses()">
+                    </div>
+                    <div class="w-full sm:w-64">
+                        <select id="courseTypeFilter" class="block w-full py-2.5 px-3 border border-gray-300 bg-white rounded-lg shadow-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition text-gray-700 cursor-pointer" onchange="filterCourses()">
+                            <option value="all">Semua Jenis Kursus</option>
+                            <option value="reskilling">Kursus Reskilling</option>
+                            <option value="upskilling">Kursus Upskilling</option>
+                            <option value="profesional">Kursus Profesional</option>
+                        </select>
                     </div>
                 </div>
                 <div class="flex-1 overflow-auto p-4 bg-gray-100 custom-scrollbar relative">
@@ -850,7 +858,7 @@
             body.innerHTML = '';
 
             if (data.length === 0) {
-                body.innerHTML = '<tr><td colspan="5" class="px-6 py-12 text-center text-gray-500 font-medium">Tiada rekod kursus dijumpai padan dengan carian.</td></tr>';
+                body.innerHTML = '<tr><td colspan="6" class="px-6 py-12 text-center text-gray-500 font-medium">Tiada rekod kursus dijumpai padan dengan carian.</td></tr>';
                 return;
             }
 
@@ -861,6 +869,7 @@
 
             const keyNama = findKey(['kursus', 'tajuk', 'nama', 'program']);
             const keyAgensi = findKey(['agensi', 'jabatan', 'institusi', 'iljtm']);
+            const keyJenis = findKey(['jenis', 'kategori', 'kluster', 'bidang']);
             const keyMesyuarat = findKey(['mesyuarat', 'siri', 'lulus', 'bilanganmesyuarat']);
             const keyPeserta = findKey(['peserta', 'kapasiti', 'orang']);
             const keyKos = findKey(['kos', 'peruntukan', 'rm', 'jumlah', 'belanja']);
@@ -868,6 +877,7 @@
             const cols = [
                 { label: 'Nama Kursus', key: keyNama, align: 'text-left', width: 'max-w-[350px] whitespace-normal' },
                 { label: 'Agensi', key: keyAgensi, align: 'text-center', width: 'whitespace-nowrap' },
+                { label: 'Jenis Kursus', key: keyJenis, align: 'text-center', width: 'whitespace-nowrap' },
                 { label: 'Mesyuarat', key: keyMesyuarat, align: 'text-center', width: 'whitespace-nowrap' },
                 { label: 'Bil Peserta', key: keyPeserta, align: 'text-center', width: 'whitespace-nowrap', format: formatNumber },
                 { label: 'Kos Keseluruhan', key: keyKos, align: 'text-right', width: 'whitespace-nowrap', format: formatRM }
@@ -906,23 +916,39 @@
                 bodyHTML += '</tr>';
             }
             if(data.length > 100) {
-                bodyHTML += `<tr><td colspan="5" class="px-4 py-3 text-center text-xs text-indigo-500 font-medium bg-gray-50">Menunjukkan 100 rekod pertama. Sila gunakan fungsi carian di atas untuk melihat rekod spesifik.</td></tr>`;
+                bodyHTML += `<tr><td colspan="6" class="px-4 py-3 text-center text-xs text-indigo-500 font-medium bg-gray-50">Menunjukkan 100 rekod pertama. Sila gunakan fungsi carian di atas untuk melihat rekod spesifik.</td></tr>`;
             }
             body.innerHTML = bodyHTML;
         }
 
         function filterCourses() {
             const query = document.getElementById('courseSearchInput').value.toLowerCase().trim();
-            if (!query) {
-                renderCoursesTable(approvedCoursesData);
-                return;
+            const typeFilter = document.getElementById('courseTypeFilter').value.toLowerCase();
+            
+            if (approvedCoursesData.length === 0) return;
+
+            // Cari kunci (key) lajur "Jenis Kursus" secara automatik
+            const rawKeys = Object.keys(approvedCoursesData[0]);
+            const keyJenis = rawKeys.find(k => ['jenis', 'kategori', 'kluster', 'bidang'].some(kw => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(kw))) || null;
+
+            let filteredData = approvedCoursesData;
+
+            // 1. Tapis mengikut dropdown Jenis Kursus dahulu
+            if (typeFilter !== 'all' && keyJenis) {
+                filteredData = filteredData.filter(row => {
+                    const val = String(row[keyJenis]).toLowerCase();
+                    return val.includes(typeFilter);
+                });
             }
 
-            const filteredData = approvedCoursesData.filter(row => {
-                return Object.values(row).some(val => 
-                    String(val).toLowerCase().includes(query)
-                );
-            });
+            // 2. Kemudian, tapis mengikut teks dalam kotak carian (jika ada)
+            if (query) {
+                filteredData = filteredData.filter(row => {
+                    return Object.values(row).some(val => 
+                        String(val).toLowerCase().includes(query)
+                    );
+                });
+            }
 
             renderCoursesTable(filteredData);
         }
