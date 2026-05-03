@@ -17,10 +17,12 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             border: 1px solid #e5e7eb;
         }
-        .custom-scrollbar::-webkit-scrollbar { height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95) translateY(-10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .modal-animate { animation: fadeIn 0.2s ease-out forwards; }
     </style>
 </head>
 <body class="text-gray-800">
@@ -35,9 +37,14 @@
                         <p class="text-xs text-indigo-200">Reskilling, Upskilling & Profesional Pengajar</p>
                     </div>
                 </div>
-                <div class="text-sm font-medium flex items-center gap-2">
-                    <span id="sync-status-indicator" class="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></span>
-                    <span id="sync-status-text">Memuat turun data...</span>
+                <div class="text-sm font-medium flex items-center gap-4">
+                    <button onclick="openSearchModal()" class="flex items-center gap-2 bg-indigo-800 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg shadow-sm border border-indigo-700 transition" title="Carian Kursus Diluluskan">
+                        <i class="fas fa-search text-indigo-300"></i> <span class="hidden sm:inline">Carian Kursus</span>
+                    </button>
+                    <div class="flex items-center gap-2 border-l border-indigo-700 pl-4">
+                        <span id="sync-status-indicator" class="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></span>
+                        <span id="sync-status-text" class="hidden sm:inline">Memuat turun data...</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -209,13 +216,72 @@
                 </div>
             </div>
         </div>
+        
+        <!-- MODAL CARIAN KURSUS DILULUSKAN -->
+        <div id="searchModal" class="fixed inset-0 z-[100] hidden bg-gray-900 bg-opacity-60 backdrop-blur-sm flex justify-center items-center p-4">
+            <div class="modal-animate bg-white rounded-xl shadow-2xl w-full md:w-11/12 max-w-6xl h-[90vh] flex flex-col overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                    <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-clipboard-check text-green-600 mr-2"></i>Senarai & Carian Kursus Diluluskan</h3>
+                    <button onclick="closeSearchModal()" class="text-gray-400 hover:text-red-500 transition text-3xl leading-none">&times;</button>
+                </div>
+                <div class="p-4 border-b border-gray-200 bg-white">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-search text-gray-400"></i>
+                        </div>
+                        <input type="text" id="courseSearchInput" class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition" placeholder="Taip di sini untuk mencari nama kursus, agensi, kategori, bulan..." onkeyup="filterCourses()">
+                    </div>
+                </div>
+                <div class="flex-1 overflow-auto p-4 bg-gray-100 custom-scrollbar relative">
+                    <div id="courseLoading" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 z-10 hidden">
+                        <i class="fas fa-spinner fa-spin text-4xl text-indigo-500 mb-3"></i>
+                        <p class="text-gray-600 font-medium">Memuat turun pangkalan data kursus...</p>
+                    </div>
+                    <div id="courseError" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 z-10 hidden text-red-500">
+                        <i class="fas fa-exclamation-triangle text-4xl mb-3"></i>
+                        <p class="font-medium">Ralat muat turun jadual. Sila cuba lagi.</p>
+                    </div>
+                    
+                    <div class="shadow-sm rounded-lg overflow-hidden border border-gray-200 bg-white min-h-[50vh]">
+                        <table class="min-w-full divide-y divide-gray-200 hidden" id="courseTable">
+                            <thead class="bg-indigo-50" id="courseTableHead"></thead>
+                            <tbody class="bg-white divide-y divide-gray-200 text-sm" id="courseTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL MAKLUMAT TERPERINCI KURSUS -->
+        <div id="courseDetailsModal" class="fixed inset-0 z-[110] hidden bg-gray-900 bg-opacity-70 backdrop-blur-sm flex justify-center items-center p-4">
+            <div class="modal-animate bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden border-t-4 border-indigo-600">
+                <!-- Header -->
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-indigo-50">
+                    <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-info-circle text-indigo-600 mr-2"></i>Maklumat Terperinci Kursus</h3>
+                    <button onclick="closeCourseDetails()" class="text-gray-400 hover:text-red-500 transition text-3xl leading-none">&times;</button>
+                </div>
+                <!-- Body -->
+                <div id="courseDetailsContent" class="flex-1 overflow-auto p-6 bg-white custom-scrollbar space-y-1">
+                    <!-- Data dijana secara dinamik melalui JavaScript -->
+                </div>
+                <!-- Footer -->
+                <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end">
+                    <button onclick="closeCourseDetails()" class="bg-gray-600 hover:bg-gray-700 text-white px-5 py-2 rounded-lg shadow-sm transition">Tutup</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- Script Logic -->
     <script>
         const URL_DATA = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRH8t9dJGFdIgrLzL2dCcDdFjZuKmh8TW7LSjATdu4WQPW0offtdDcMkEWejxBdx1gZYztg4PyoPEmU/pub?gid=2046149705&single=true&output=csv';
+        const URL_KURSUS_LULUS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRH8t9dJGFdIgrLzL2dCcDdFjZuKmh8TW7LSjATdu4WQPW0offtdDcMkEWejxBdx1gZYztg4PyoPEmU/pub?gid=815478866&single=true&output=csv';
 
         let rawData = [];
+        let approvedCoursesData = []; 
+        window.currentDisplayedCourses = []; // Variabel global untuk paparan detail kursus
+        let isCoursesLoaded = false;
         let monthlyChartInstance = null;
         let agencyChartInstance = null;
 
@@ -582,7 +648,7 @@
                         }
                     }, 
                     scales: { 
-                        y: { ticks: { autoSkip: false } }, // Pastikan semua label agensi sentiasa dipaparkan
+                        y: { ticks: { autoSkip: false } }, 
                         x: { suggestedMax: 100, title: { display: true, text: 'Peratusan Siap (%)' } } 
                     } 
                 }
@@ -666,7 +732,6 @@
                             <div class="${bgClassP} h-1/2 flex items-center justify-center text-[10px] font-medium border-b border-white/40 rounded-t">P: ${pText}</div>
                             <div class="${bgClassS} h-1/2 flex items-center justify-center text-[10px] font-bold tracking-tight rounded-b">S: ${sText}</div>
                             
-                            <!-- Custom Tooltip Interaktif -->
                             <div class="hidden group-hover:block absolute top-full left-1/2 transform -translate-x-1/2 mt-1.5 w-max min-w-[160px] bg-gray-900 text-white text-xs p-3 rounded-lg shadow-2xl pointer-events-none">
                                 <div class="font-bold text-gray-100 border-b border-gray-700 pb-1.5 mb-2 text-center">${ag} - Bulan ${i}</div>
                                 <div class="flex justify-between gap-4 mb-1">
@@ -681,7 +746,6 @@
                                     <span class="text-gray-400">Pencapaian:</span> 
                                     <span class="font-bold text-white">${pctFormat}</span>
                                 </div>
-                                <!-- Penunjuk Segitiga -->
                                 <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 -mb-px border-[6px] border-transparent border-b-gray-900"></div>
                             </div>
                         </div>`;
@@ -692,6 +756,175 @@
                 htmlRow += `</div></div>`;
                 ganttBody.innerHTML += htmlRow;
             });
+        }
+
+        // --- FUNGSI MODAL & CARIAN KURSUS ---
+        function openSearchModal() {
+            document.getElementById('searchModal').classList.remove('hidden');
+            if (!isCoursesLoaded) {
+                loadApprovedCourses();
+            } else {
+                setTimeout(() => document.getElementById('courseSearchInput').focus(), 100);
+            }
+        }
+
+        function closeSearchModal() {
+            document.getElementById('searchModal').classList.add('hidden');
+        }
+
+        function openCourseDetails(index) {
+            const row = window.currentDisplayedCourses[index];
+            if(!row) return;
+
+            const container = document.getElementById('courseDetailsContent');
+            container.innerHTML = '';
+
+            for (const key in row) {
+                if (key.trim() === '') continue; // Abaikan lajur kosong
+                
+                let val = row[key] || '-';
+                
+                let fieldHTML = `
+                <div class="mb-5">
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">${key}</label>
+                    <div class="w-full pb-2 border-b border-dotted border-gray-300 text-gray-800 font-medium text-base whitespace-pre-wrap break-words">${val}</div>
+                </div>
+                `;
+                container.innerHTML += fieldHTML;
+            }
+
+            document.getElementById('courseDetailsModal').classList.remove('hidden');
+        }
+
+        function closeCourseDetails() {
+            document.getElementById('courseDetailsModal').classList.add('hidden');
+        }
+
+        // Tutup modal jika pengguna klik di luar kotak putih
+        window.addEventListener('click', function(event) {
+            const searchModal = document.getElementById('searchModal');
+            const detailsModal = document.getElementById('courseDetailsModal');
+            
+            // Check modal maklumat terperinci dahulu
+            if (event.target === detailsModal) {
+                closeCourseDetails();
+            } else if (event.target === searchModal) {
+                closeSearchModal();
+            }
+        });
+
+        function loadApprovedCourses() {
+            document.getElementById('courseLoading').classList.remove('hidden');
+            document.getElementById('courseTable').classList.add('hidden');
+            document.getElementById('courseError').classList.add('hidden');
+
+            Papa.parse(URL_KURSUS_LULUS, {
+                download: true,
+                header: true, 
+                skipEmptyLines: true,
+                complete: function(results) {
+                    approvedCoursesData = results.data.filter(row => Object.values(row).some(val => val.trim() !== ''));
+                    isCoursesLoaded = true;
+                    
+                    document.getElementById('courseLoading').classList.add('hidden');
+                    document.getElementById('courseTable').classList.remove('hidden');
+                    renderCoursesTable(approvedCoursesData);
+                    
+                    setTimeout(() => document.getElementById('courseSearchInput').focus(), 100);
+                },
+                error: function(err) {
+                    console.error("Gagal load carian kursus:", err);
+                    document.getElementById('courseLoading').classList.add('hidden');
+                    document.getElementById('courseError').classList.remove('hidden');
+                }
+            });
+        }
+
+        function renderCoursesTable(data) {
+            // Simpan data yang sedang dipapar untuk tujuan modal terperinci
+            window.currentDisplayedCourses = data; 
+            
+            const head = document.getElementById('courseTableHead');
+            const body = document.getElementById('courseTableBody');
+            head.innerHTML = '';
+            body.innerHTML = '';
+
+            if (data.length === 0) {
+                body.innerHTML = '<tr><td colspan="5" class="px-6 py-12 text-center text-gray-500 font-medium">Tiada rekod kursus dijumpai padan dengan carian.</td></tr>';
+                return;
+            }
+
+            const rawKeys = Object.keys(data[0]);
+            const findKey = (keywords) => {
+                return rawKeys.find(k => keywords.some(kw => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(kw))) || null;
+            };
+
+            const keyNama = findKey(['kursus', 'tajuk', 'nama', 'program']);
+            const keyAgensi = findKey(['agensi', 'jabatan', 'institusi', 'iljtm']);
+            const keyMesyuarat = findKey(['mesyuarat', 'siri', 'lulus', 'bilanganmesyuarat']);
+            const keyPeserta = findKey(['peserta', 'kapasiti', 'orang']);
+            const keyKos = findKey(['kos', 'peruntukan', 'rm', 'jumlah', 'belanja']);
+
+            const cols = [
+                { label: 'Nama Kursus', key: keyNama, align: 'text-left', width: 'max-w-[350px] whitespace-normal' },
+                { label: 'Agensi', key: keyAgensi, align: 'text-center', width: 'whitespace-nowrap' },
+                { label: 'Mesyuarat', key: keyMesyuarat, align: 'text-center', width: 'whitespace-nowrap' },
+                { label: 'Bil Peserta', key: keyPeserta, align: 'text-center', width: 'whitespace-nowrap', format: formatNumber },
+                { label: 'Kos Keseluruhan', key: keyKos, align: 'text-right', width: 'whitespace-nowrap', format: formatRM }
+            ];
+
+            let headHTML = '<tr>';
+            cols.forEach(c => {
+                headHTML += `<th class="px-4 py-3 ${c.align} text-xs font-bold text-gray-600 uppercase tracking-wider sticky top-0 bg-indigo-100 border-b border-gray-200 z-10 whitespace-nowrap">${c.label}</th>`;
+            });
+            headHTML += '</tr>';
+            head.innerHTML = headHTML;
+
+            let bodyHTML = '';
+            const limit = Math.min(data.length, 100); 
+            for (let i = 0; i < limit; i++) {
+                const row = data[i];
+                bodyHTML += '<tr class="hover:bg-blue-50 transition-colors">';
+                
+                cols.forEach(c => {
+                    let val = c.key && row[c.key] ? row[c.key] : '-';
+                    let isNameCol = (c.key === keyNama);
+                    
+                    if (val !== '-' && c.format) {
+                        let num = cleanNumber(val);
+                        val = c.format(num);
+                    }
+                    
+                    if (isNameCol && val !== '-') {
+                        // Teks biru dan boleh diklik
+                        bodyHTML += `<td class="px-4 py-3 border-b border-gray-100 align-top ${c.align} ${c.width} text-sm"><a onclick="openCourseDetails(${i})" class="text-indigo-600 hover:text-indigo-800 font-semibold hover:underline cursor-pointer block">${val}</a></td>`;
+                    } else {
+                        bodyHTML += `<td class="px-4 py-3 border-b border-gray-100 text-gray-700 align-top ${c.align} ${c.width} text-sm">${val}</td>`;
+                    }
+                });
+                
+                bodyHTML += '</tr>';
+            }
+            if(data.length > 100) {
+                bodyHTML += `<tr><td colspan="5" class="px-4 py-3 text-center text-xs text-indigo-500 font-medium bg-gray-50">Menunjukkan 100 rekod pertama. Sila gunakan fungsi carian di atas untuk melihat rekod spesifik.</td></tr>`;
+            }
+            body.innerHTML = bodyHTML;
+        }
+
+        function filterCourses() {
+            const query = document.getElementById('courseSearchInput').value.toLowerCase().trim();
+            if (!query) {
+                renderCoursesTable(approvedCoursesData);
+                return;
+            }
+
+            const filteredData = approvedCoursesData.filter(row => {
+                return Object.values(row).some(val => 
+                    String(val).toLowerCase().includes(query)
+                );
+            });
+
+            renderCoursesTable(filteredData);
         }
 
         window.onload = () => {
