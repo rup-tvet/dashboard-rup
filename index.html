@@ -201,10 +201,8 @@
                 <div class="min-w-[800px]" id="gantt-container">
                     <div class="flex border-b border-gray-200 pb-2 mb-2 text-xs font-semibold text-gray-500">
                         <div class="w-32 flex-shrink-0">Agensi</div>
-                        <div class="flex-1 grid grid-cols-12 gap-1 text-center">
-                            <div>Jan</div><div>Feb</div><div>Mac</div><div>Apr</div>
-                            <div>Mei</div><div>Jun</div><div>Jul</div><div>Ogo</div>
-                            <div>Sep</div><div>Okt</div><div>Nov</div><div>Dis</div>
+                        <div id="gantt-header-months" class="flex-1 grid gap-1 text-center" style="grid-template-columns: repeat(12, minmax(0, 1fr));">
+                            <!-- Bulan akan dijana di sini secara dinamik -->
                         </div>
                     </div>
                     <div id="gantt-body" class="space-y-2 pb-24">
@@ -545,7 +543,7 @@
 
             updateMonthlyChart(fullyFilteredData);
             updateAgencyChart(monthFilteredData); 
-            updateGanttChart(monthFilteredData, filterAgency);
+            updateGanttChart(monthFilteredData, filterAgency, minM, maxM);
         }
 
         function updateMonthlyChart(data) {
@@ -616,6 +614,7 @@
             
             let performance = [];
             let tooltipData = [];
+            let barColors = [];
 
             agencies.forEach(ag => {
                 let plan = 0, actual = 0;
@@ -628,16 +627,35 @@
                 let pct = plan > 0 ? Math.round((actual/plan)*100) : 0;
                 performance.push(pct);
                 
+                // --- Logik Warna Dinamik (Sama Seperti Gantt Chart) ---
+                let color = '#9CA3AF'; // Kelabu lalai
+                if (plan > 0 && actual === 0) {
+                    color = '#EF4444'; // Merah (bg-red-500)
+                } else if (plan > 0 && actual > 0) {
+                    let ratio = actual / plan;
+                    if (ratio >= 0.75) {
+                        color = '#22C55E'; // Hijau (bg-green-500)
+                    } else if (ratio >= 0.50) {
+                        color = '#FACC15'; // Kuning (bg-yellow-400)
+                    } else if (ratio >= 0.25) {
+                        color = '#FB923C'; // Jingga (bg-orange-400)
+                    } else {
+                        color = '#EF4444'; // Merah (bg-red-500)
+                    }
+                } else if (plan === 0 && actual > 0) {
+                    color = '#60A5FA'; // Biru ad-hoc (bg-blue-400)
+                }
+                barColors.push(color);
+
                 tooltipData.push({ pct: pct, plan: plan, actual: actual, isKos: isKos });
             });
 
-            const colors = ['#10B981', '#F59E0B', '#6366F1', '#EC4899', '#0EA5E9'];
             const ctx = document.getElementById('agencyChart').getContext('2d');
             if (agencyChartInstance) agencyChartInstance.destroy();
 
             agencyChartInstance = new Chart(ctx, {
                 type: 'bar',
-                data: { labels: agencies, datasets: [{ data: performance, backgroundColor: colors, borderRadius: 4 }] },
+                data: { labels: agencies, datasets: [{ data: performance, backgroundColor: barColors, borderRadius: 4 }] },
                 options: { 
                     indexAxis: 'y', 
                     responsive: true, 
@@ -670,15 +688,27 @@
             return num.toString();
         }
 
-        function updateGanttChart(allData, filterAgency) {
+        function updateGanttChart(allData, filterAgency, startMonth, endMonth) {
             const rawAgencies = [...new Set(rawData.map(d => d.agensi))];
             const allAgencies = sortAgencies(rawAgencies); 
             const agencies = filterAgency === 'ALL' ? allAgencies : [filterAgency];
             const ganttBody = document.getElementById('gantt-body');
+            const headerMonths = document.getElementById('gantt-header-months');
             const metric = document.getElementById('ganttMetric').value;
             const isKos = metric === 'kos';
             
             ganttBody.innerHTML = ''; 
+
+            // Bina Header Bulan Secara Dinamik
+            const monthNames = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
+            const span = endMonth - startMonth + 1;
+            headerMonths.style.gridTemplateColumns = `repeat(${span}, minmax(0, 1fr))`;
+            
+            let headerHTML = '';
+            for(let i = startMonth; i <= endMonth; i++) {
+                headerHTML += `<div>${monthNames[i-1]}</div>`;
+            }
+            headerMonths.innerHTML = headerHTML;
 
             if(agencies.length === 0) {
                 ganttBody.innerHTML = '<p class="text-sm text-gray-500 py-4">Tiada data dijumpai.</p>';
@@ -687,9 +717,9 @@
 
             agencies.forEach(ag => {
                 const agData = allData.filter(d => d.agensi === ag);
-                let htmlRow = `<div class="flex items-center text-sm py-2 hover:bg-gray-50 rounded transition border-b border-gray-100 last:border-0"><div class="w-32 flex-shrink-0 font-medium text-gray-700 truncate">${ag}</div><div class="flex-1 grid grid-cols-12 gap-1 h-11">`;
+                let htmlRow = `<div class="flex items-center text-sm py-2 hover:bg-gray-50 rounded transition border-b border-gray-100 last:border-0"><div class="w-32 flex-shrink-0 font-medium text-gray-700 truncate">${ag}</div><div class="flex-1 grid gap-1 h-11" style="grid-template-columns: repeat(${span}, minmax(0, 1fr));">`;
 
-                for(let i=1; i<=12; i++) {
+                for(let i = startMonth; i <= endMonth; i++) {
                     const mData = agData.find(d => d.bulan === i);
                     let rVal = 0, sVal = 0;
                     
@@ -741,7 +771,7 @@
                             <div class="${bgClassS} h-1/2 flex items-center justify-center text-[10px] font-bold tracking-tight rounded-b">S: ${sText}</div>
                             
                             <div class="hidden group-hover:block absolute top-full left-1/2 transform -translate-x-1/2 mt-1.5 w-max min-w-[160px] bg-gray-900 text-white text-xs p-3 rounded-lg shadow-2xl pointer-events-none">
-                                <div class="font-bold text-gray-100 border-b border-gray-700 pb-1.5 mb-2 text-center">${ag} - Bulan ${i}</div>
+                                <div class="font-bold text-gray-100 border-b border-gray-700 pb-1.5 mb-2 text-center">${ag} - ${monthNames[i-1]}</div>
                                 <div class="flex justify-between gap-4 mb-1">
                                     <span class="text-gray-400">Rancang:</span> 
                                     <span class="font-medium text-white">${pFormat}</span>
@@ -872,7 +902,12 @@
             const keyJenis = findKey(['jenis', 'kategori', 'kluster', 'bidang']);
             const keyMesyuarat = findKey(['mesyuarat', 'siri', 'lulus', 'bilanganmesyuarat']);
             const keyPeserta = findKey(['peserta', 'kapasiti', 'orang']);
-            const keyKos = findKey(['kos', 'peruntukan', 'rm', 'jumlah', 'belanja']);
+            
+            // Utamakan carian 'Kos Keseluruhan' atau 'Jumlah Kos' terlebih dahulu
+            let keyKos = findKey(['koskeseluruhan', 'jumlahkos', 'jumlahperuntukan']);
+            if (!keyKos) {
+                keyKos = findKey(['kos', 'peruntukan', 'rm', 'jumlah', 'belanja']);
+            }
 
             const cols = [
                 { label: 'Nama Kursus', key: keyNama, align: 'text-left', width: 'max-w-[350px] whitespace-normal' },
